@@ -1,0 +1,21 @@
+{
+    "prepare_queue": {
+        "installed": [],
+        "uninstalled": []
+    },
+    "config_munge": {
+        "files": {}
+    },
+    "installed_plugins": {
+        "cordova-plugin-whitelist": {
+            "PACKAGE_NAME": "io.ensur.app"
+        },
+        "cordova-plugin-nativestorage": {
+            "PACKAGE_NAME": "io.ensur.app"
+        },
+        "cordova-plugin-splashscreen": {
+            "PACKAGE_NAME": "io.ensur.app"
+        }
+    },
+    "dependent_plugins": {}
+}

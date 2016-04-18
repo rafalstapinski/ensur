@@ -1,6 +1,83 @@
-$(document).ready(function () {
+var calls = {
+
+    checkUsername: function() {
+
+        $.post({
+            url: "http://localhost:8003",
+            data: $("#username").val(),
+            success: function(data) {
+                if (data["status"] == 200) {
+                    if (data["payload"]["unique"] == true) {
+                        app.step2();
+                    } else {
+                        alert("Username not unique. ");
+                    }
+                } else {
+                    data["payload"]["error"];
+                }
+            },
+            error: function(e) {
+                alert("There was some sort of error. Try again soon. ");
+            }
+        });
+    }
+
+};
+
+var app = {
+
+    initialize: function() {
+        this.bindEvents();
+
+    },
+    bindEvents: function() {
+
+        $("#checkUsername").on("click", calls.checkUsername);
+
+        document.addEventListener("deviceready", this.onDeviceReady, false);
+
+        this.onDeviceReady();
+    },
+    onDeviceReady: function() {
+
+        this.receivedEvent("deviceready");
+    },
+    receivedEvent: function(id) {
+
+        var storage = window.localStorage;
+
+        var setup = storage.getItem("setup");
+
+        if (setup == null) {
+            this.firstLaunch();                 // go through first launch sequence
+        } else {
+            $(".normalLaunch").show();          //go through normal launch sequence
+        }
+
+    },
+    firstLaunch: function() {
+        $(".firstLaunch").show();
+        this.step1();
+    },
+    step1: function() {
+        $("#step1").show();
+    },
+    step2: function() {
+        $("#step1").hide();
+        $("#step2").show();
+    }
+};
+
+app.initialize();
+
+
+
+
+
+/*$(document).ready(function () {
 
     var openpgp = window.openpgp;
+
 
     $("#generate_keys").click(function() {
 
@@ -11,16 +88,12 @@ $(document).ready(function () {
         };
 
         openpgp.generateKey(options).then(function(key) {
-            var privkey = key.privateKeyArmored; // '-----BEGIN PGP PRIVATE KEY BLOCK ... '
-            var pubkey = key.publicKeyArmored;   // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
+            window.privkey = key.privateKeyArmored; // '-----BEGIN PGP PRIVATE KEY BLOCK ... '
+            window.pubkey = key.publicKeyArmored;   // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
 
 
-            console.log(privkey);
-            console.log(pubkey);
-
-
-            window.privkey = privkey;
-            window.pubkey = pubkey;
+            console.log(window.privkey);
+            console.log(window.pubkey);
 
         });
 
@@ -34,38 +107,28 @@ $(document).ready(function () {
 
         options = {
             data: msg,
-            publicKeys: openpgp.key.readArmored(pubkey).keys,
+            publicKeys: openpgp.key.readArmored(window.pubkey).keys,
             armor: false
         };
 
         openpgp.encrypt(options).then(function(ciphertext) {
-            var encrypted = ciphertext.message.packets.write();
-            console.log(encrypted);
-            window.dec = encrypted;
+            window.encrypted = ciphertext.message.packets.write();
+            console.log(window.encrypted);
         });
 
     });
 
     $("#decrypt").click(function() {
 
-        var msg = $("#dec").val();
-
-        console.log(window.dec);
-
-        var encrypteduint8array = new Uint8Array(window.dec);
-
-        console.log(encrypteduint8array);
-
         options = {
-            message: openpgp.message.read(encrypteduint8array),
-            privateKey: openpgp.key.readArmored(privkey).keys[0],
-            format: "utf8"
+            message: openpgp.message.read(window.encrypted),
+            privateKey: openpgp.key.readArmored(window.privkey).keys[0],
+            format: "binary"
         };
 
         openpgp.decrypt(options).then(function(plaintext) {
             console.log(plaintext.data);
         });
-
 
     });
 
@@ -92,3 +155,6 @@ function str_to_ui(str) {
     return buf;
 
 }
+
+
+*/
