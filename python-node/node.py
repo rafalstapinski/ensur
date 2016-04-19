@@ -27,7 +27,7 @@ def new_request(request):
     web.header("Content-Type", "application/json")
     web.header("Access-Control-Allow-Origin", "*")
 
-def user_checkusername:
+class user_checkusername:
     def POST(self):
         new_request(self)
         data = web.input()
