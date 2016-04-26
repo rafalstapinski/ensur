@@ -1,27 +1,117 @@
+/*
+
+    Application design happens in design object.
+    API calls handled by calls object.
+    app object waits for events, runs calls and design, does client side calc
+
+*/
+
+var view = {
+
+    firstLaunch: function() {
+        $(".firstLaunch").show();
+    },
+    normalLaunch: function() {
+        $(".normalLaunch").show();
+    },
+    step1: function() {
+        $("#step1").show();
+    },
+    step2: function() {
+        $("#step1").hide();
+        $("#step2").show();
+    },
+    step3: function() {
+        $("#step2").hide();
+        $("#step3").show();
+    },
+    new: function() {
+
+    },
+    newMessage: function() {
+
+    },
+    newContact: function() {
+
+    },
+    loading: function() {
+        //overlay loading screen, don't go to load.html
+        console.log("start loading screen");
+    },
+    endLoading: function() {
+        //delete overlay
+        console.log("end loading screen");
+    },
+    finishSetup: function() {
+        //view for after setup
+
+        console.log("finish setup");
+    },
+    mainScreen: function() {
+        //display main screen
+        location.href="main.html";
+    }
+
+}
+
 var calls = {
 
     checkUsername: function() {
 
+        var username = $("#username").val();
+
         $.post({
-            url: "http://localhost:8003",
-            data: $("#username").val(),
+            url: "http://localhost:8003/user/checkusername",
+            data: {
+                "username": username
+            },
             success: function(data) {
                 if (data["status"] == 200) {
                     if (data["payload"]["unique"] == true) {
-                        app.step2();
+                        app.step2(username);
                     } else {
                         alert("Username not unique. ");
                     }
                 } else {
-                    data["payload"]["error"];
+                    alert(data["payload"]["error"]);
                 }
             },
             error: function(e) {
                 alert("There was some sort of error. Try again soon. ");
             }
         });
-    }
+    },
+    createUser: function(username, password, pubkey, privkey) {
 
+        $.post({
+            url: "http://localhost:8003/user/createuser",
+            data: {
+                "username": username,
+                "password": password,
+                "pubkey": pubkey
+            },
+            success: function(data) {
+                if (data["status"] == 200) {
+                    view.endLoading();
+                    localStorage.setItem("privkey", privkey);
+                    localStorage.setItem("username", username);
+                    view.finishSetup();
+                    app.normalLaunch();
+                } else {
+                    alert(data["payload"]["error"])
+                }
+            },
+            error: function(e) {
+                alert("There was some sort of error. Try again soon. ");
+            }
+        });
+    },
+    login: function() {
+        var password = $(".normalLaunch input").val();
+
+        console.log(password);
+
+    }
 };
 
 var app = {
@@ -31,8 +121,6 @@ var app = {
 
     },
     bindEvents: function() {
-
-        $("#checkUsername").on("click", calls.checkUsername);
 
         document.addEventListener("deviceready", this.onDeviceReady, false);
 
@@ -44,27 +132,95 @@ var app = {
     },
     receivedEvent: function(id) {
 
-        var storage = window.localStorage;
+        var privkey = localStorage.getItem("privkey");
 
-        var setup = storage.getItem("setup");
-
-        if (setup == null) {
-            this.firstLaunch();                 // go through first launch sequence
+        if (privkey == null) {
+            this.firstLaunch();          // go through first launch sequence
         } else {
-            $(".normalLaunch").show();          //go through normal launch sequence
+            this.normalLaunch();        //go through normal launch sequence
         }
 
     },
     firstLaunch: function() {
-        $(".firstLaunch").show();
+        view.firstLaunch();
         this.step1();
     },
     step1: function() {
-        $("#step1").show();
+        view.step1();
+        $("#checkUsername").click(calls.checkUsername);
     },
-    step2: function() {
-        $("#step1").hide();
-        $("#step2").show();
+    step2: function(username) {
+        view.step2();
+
+        $("#step2 button").click(function() {
+
+            var password = $("#password").val();
+
+            if (password == $("#passwordAgain").val()) {
+                app.step3(username, password);
+            } else {
+                alert("Passwords don't match. ");
+            }
+
+        });
+    },
+    step3: function(username, password) {
+
+        view.step3();
+
+        $("#generateKeys").click(function() {
+
+            var openpgp = window.openpgp;
+
+            var options = {
+                userIds: [{name: username}],
+                numBits: 4096,
+                passphrase: password
+            };
+
+            view.loading();
+
+            openpgp.generateKey(options).then(function(key) {
+
+                var privkey = key.privateKeyArmored;
+                var pubkey = key.publicKeyArmored;
+
+                //check cordova network connection here
+                //before continuing
+
+                calls.createUser(username, password, pubkey, privkey);
+
+            });
+        });
+    },
+    normalLaunch: function() {
+
+        view.normalLaunch();
+
+        $(".normalLaunch button").click(calls.login);
+
+    },
+    mainScreen: function() {
+
+        view.mainScreen();
+
+        $("#new").click(view.new);
+        $("#newContact").click(this.newContact);
+        $("#newMessage").click(this.newMessage);
+
+    },
+    newContact: function() {
+        view.newContact();
+
+
+        this.runHandle();
+    },
+    newMessage: function() {
+        view.newMessage();
+
+
+
+        this.runHandle();
     }
 };
 
