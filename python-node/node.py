@@ -102,6 +102,10 @@ if __name__ == "__main__":
         elif opt == "-i":
             initnode = opts[opts.index(opt) + 1]
 
+    if firstnode and initnode is not None:
+        print "Can't run as first node and connect to an init node. "
+        sys.exit()
+
     #get public ip
 
     try:
