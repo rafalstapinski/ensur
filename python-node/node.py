@@ -1,8 +1,11 @@
 import web
 import pysqlw
-import config
 import json
-import hashlib
+import sqlalchemy as sql
+import getopt
+import sys
+import requests
+from urllib2 import urlopen
 
 ################################################
 #
@@ -11,17 +14,8 @@ import hashlib
 ################################################
 
 urls = (
-    "/user/checkusername", "user_checkusername",
-    "/user/createuser", "user_createuser"
+    "node/init", "node_init",
 )
-
-mysql_db = pysqlw.pysqlw(**{
-    "db_type": config.mysql.db_type,
-    "db_host": config.mysql.db_host,
-    "db_user": config.mysql.db_user,
-    "db_pass": config.mysql.db_pass,
-    "db_name": config.mysql.db_name
-})
 
 ################################################
 #
@@ -30,17 +24,30 @@ mysql_db = pysqlw.pysqlw(**{
 ################################################
 
 def write(payload, status):
-    payload["status"] = status
     return json.dumps({"payload": payload, "status": status})
 
 def notfound():
-    # web.header("Content-Type", "application/json; charset=UTF-8")
-    return web.notfound("404 Not Found")
-    #return web.notfound(render.notfound())
+    return web.notfound("404")
 
 def new_request(request):
     web.header("Content-Type", "application/json")
     web.header("Access-Control-Allow-Origin", "*")
+
+
+################################################
+#
+#                  node classes
+#
+################################################
+
+class node_init:
+    def POST(self):
+        data = web.input()
+
+        if data["wefwef"]:
+            print "exists"
+        else:
+            print "nah"
 
 ################################################
 #
@@ -48,79 +55,9 @@ def new_request(request):
 #
 ################################################
 
-class user_createuser:
-    def POST(self):
-        new_request(self)
-        data = web.input()
 
-        if data["username"] and data["password"] and data["pubkey"]:
-            username = data["username"]
-            password = data["password"]
-            pubkey = data["pubkey"]
 
-            try:
-                username = username.decode("utf-8")
-            except UnicodeError:
-                return write({"error": "Username not valid UTF-8 format. "}, 400)
 
-            if len(username) > 20 or len(username) < 1:
-                return write({"error": "Username must be between 1 and 20 chars. "}, 400)
-
-            user = mysql_db.where("username", mysql_db.escape(username)).get("users")
-
-            if user != ():
-                return write({"error": "Username already exists. "}, 400)
-
-            try:
-                password = password.decode("utf-8")
-            except UnicodeError:
-                return write({"error": "Password not valid UTF-8 format. "}, 400)
-
-            if len(password) < 1 or len(password) > 64:
-                return write({"error": "Password must be between 1 and 64 chars. "}, 400)
-
-            try:
-                pubkey = pubkey.decode("utf-8")
-            except UnicodeError:
-                return write({"error": "Public key not valud UTF-8 format. "}, 400)
-
-            password_hash = hashlib.sha224(password).hexdigest()
-
-            inserted = mysql_db.insert("users", {"username": mysql_db.escape(username), "password": mysql_db.escape(password_hash), "pubkey": mysql_db.escape(pubkey)})
-
-            print inserted
-
-            if inserted:
-                return write({"message": "Success. "}, 200)
-            else:
-                return write({"error": "Error inserting into database. "}, 500)
-
-        else:
-            return write({"error": "Either username, password, or pubkey not supplied. "}, 400)
-
-class user_checkusername:
-    def POST(self):
-        new_request(self)
-        data = web.input()
-
-        if data["username"]:
-            username = data["username"]
-            try:
-                username.decode("utf-8")
-            except UnicodeError:
-                return write({"error": "Username not valid UTF-8 format. "}, 400)
-
-            if len(username) > 20 or len(username) < 1:
-                return write({"error": "Username must be between 1 and 20 chars. "}, 400)
-
-            user = mysql_db.where("username", mysql_db.escape(username)).get("users")
-
-            if user == ():
-                return write({"unique": True}, 200)
-            else:
-                return write({"unique": False}, 200)
-        else:
-            return write({"error": "Username can't be empty. "}, 400)
 
 ################################################
 #
@@ -129,7 +66,56 @@ class user_checkusername:
 ################################################
 
 if __name__ == "__main__":
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "p:i:")
+    except getopt.GetoptError as e:
+        print e
+        print """
+        -p defines the port you want the node to run at
+        -i defines the ip and port "12.34.56.78:90" of the init stable node
+        """
+        sys.exit(2)
+
+    for o, a in opts:
+        if o == "p":
+            port = a
+        elif o == "i":
+            initnode = a
+
+    try:
+        my_ip = requests.get('http://jsonip.com').json()['ip']
+    except Exception as e:
+        print "Error:", e
+        print "Error getting public IP. "
+        sys.exit()
+
+    try:
+        i = requests.post(initnode, data={"ip": my_ip, "port": port}).json()
+        print i
+    except Exception as e:
+        print "Error:", e
+        print "Could not POST to init node. "
+        sys.exit()
+
+
+    # engine = sql.create_engine("sqlite://", echo=True)
+    # metadata = sql.MetaData()
+    # users = sql.Table("users", metadata,
+    #     sql.Column("id", sql.Integer, primary_key=True),
+    #     sql.Column("username", sql.String),
+    #     sql.Column("pubkey", sql.String)
+    # )
+    # nodes = sql.Table("nodes", metadata,
+    #     sql.Column("id", sql.Integer, primary_key=True),
+    #     sql.Column("ip", sql.String),
+    #     sql.Column("reliability", sql.Integer)
+    # )
+    #
+    # metadata.create_all(engine)
+
+
     app = web.application(urls, globals())
     app.notfound = notfound
+    app.add_processor(new_request)
     app.run()
-    mysql_db.close()
