@@ -1,21 +1,13 @@
 import web
 import pysqlw
 import json
-import sqlalchemy as sql
-import getopt
+import sqlalchemy
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 import sys
 import requests
 from urllib2 import urlopen
-
-################################################
-#
-#                  config
-#
-################################################
-
-urls = (
-    "node/init", "node_init",
-)
+import os.path
 
 ################################################
 #
@@ -55,9 +47,38 @@ class node_init:
 #
 ################################################
 
+################################################
+#
+#                  config
+#
+################################################
 
+urls = (
+    "node/init", "node_init",
+)
 
+base = declarative_base()
 
+class Node(base):
+    __tablename__ = "nodes"
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    ip = sqlalchemy.Column(sqlalchemy.String)
+    reliability = sqlalchemy.Column(sqlalchemy.Integer)
+
+class User(base):
+    __tablename__ = "users"
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    username = sqlalchemy.Column(sqlalchemy.String)
+    pubkey = sqlalchemy.Column(sqlalchemy.String)
+
+engine = sqlalchemy.create_engine("sqlite:///db.db")
+
+if not os.path.isfile("db.db"):
+    base.metadata.create_all(engine)
+
+base.metadata.bind = engine
+DBSession = sessionmaker(bind=engine)
+session = DBSession()
 
 ################################################
 #
@@ -67,21 +88,21 @@ class node_init:
 
 if __name__ == "__main__":
 
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "p:i:")
-    except getopt.GetoptError as e:
-        print e
-        print """
-        -p defines the port you want the node to run at
-        -i defines the ip and port "12.34.56.78:90" of the init stable node
-        """
-        sys.exit(2)
+    firstnode = False
+    initnode = None  #default stable node here, once implemented
 
-    for o, a in opts:
-        if o == "p":
-            port = a
-        elif o == "i":
-            initnode = a
+    #bind arguments
+
+    opts = sys.argv[1:]
+    port = opts[0]
+
+    for opt in opts:
+        if opt == "-f":
+            firstnode = True
+        elif opt == "-i":
+            initnode = opts[opts.index(opt) + 1]
+
+    #get public ip
 
     try:
         my_ip = requests.get('http://jsonip.com').json()['ip']
@@ -90,30 +111,22 @@ if __name__ == "__main__":
         print "Error getting public IP. "
         sys.exit()
 
-    try:
-        i = requests.post(initnode, data={"ip": my_ip, "port": port}).json()
-        print i
-    except Exception as e:
-        print "Error:", e
-        print "Could not POST to init node. "
-        sys.exit()
+    #if firstnode, populate self
+    #else populate from init node
 
+    if firstnode:
+        session.add(Node(ip=my_ip, reliability=0))
+        session.commit()
 
-    # engine = sql.create_engine("sqlite://", echo=True)
-    # metadata = sql.MetaData()
-    # users = sql.Table("users", metadata,
-    #     sql.Column("id", sql.Integer, primary_key=True),
-    #     sql.Column("username", sql.String),
-    #     sql.Column("pubkey", sql.String)
-    # )
-    # nodes = sql.Table("nodes", metadata,
-    #     sql.Column("id", sql.Integer, primary_key=True),
-    #     sql.Column("ip", sql.String),
-    #     sql.Column("reliability", sql.Integer)
-    # )
-    #
-    # metadata.create_all(engine)
-
+    else:
+        try:
+            i = requests.post(initnode, data={"ip": my_ip, "port": port}).json()
+            print i
+            #do inserting of all data here
+        except Exception as e:
+            print "Error:", e
+            print "Could not POST to init node. "
+            sys.exit()
 
     app = web.application(urls, globals())
     app.notfound = notfound
