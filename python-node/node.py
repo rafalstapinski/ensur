@@ -34,12 +34,23 @@ def new_request(request):
 
 class node_init:
     def POST(self):
+        new_request(self)
         data = web.input()
 
-        if data["wefwef"]:
-            print "exists"
+        if data["port"] and data["ip"]:
+            try:
+                port = data["port"].encode("utf-8")
+                ip = data["ip"].encode("utf-8")
+            except UnicodeError:
+                return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
+
+            session.add(Node(ip="%s:%s" & (ip, port), reliability=0))
+            session.commit()
+
+            
+
         else:
-            print "nah"
+            return write({"error": "Port or IP not supplied. "}, 500)
 
 ################################################
 #
@@ -54,7 +65,8 @@ class node_init:
 ################################################
 
 urls = (
-    "node/init", "node_init",
+    "/node/init", "node_init",
+
 )
 
 base = declarative_base()
@@ -124,7 +136,9 @@ if __name__ == "__main__":
 
     else:
         try:
-            i = requests.post(initnode, data={"ip": my_ip, "port": port}).json()
+            r = "http://%s/node/init" % initnode
+            print r
+            i = requests.post(r, data={"ip": my_ip, "port": port}).json()
             print i
             #do inserting of all data here
         except Exception as e:
@@ -134,5 +148,5 @@ if __name__ == "__main__":
 
     app = web.application(urls, globals())
     app.notfound = notfound
-    app.add_processor(new_request)
+    #app.add_processor(new_request)
     app.run()
