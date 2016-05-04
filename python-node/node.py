@@ -37,17 +37,45 @@ class node_init:
         new_request(self)
         data = web.input()
 
-        if data["port"] and data["ip"]:
+        if data["ip"]:
             try:
-                port = data["port"].encode("utf-8")
                 ip = data["ip"].encode("utf-8")
             except UnicodeError:
                 return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
 
-            session.add(Node(ip="%s:%s" & (ip, port), reliability=0))
+            nodes = session.query(Node).all()
+
+            res = []
+
+            for node in nodes:
+                res.append({"ip": node.ip, "reliability": node.reliability})
+                if node.ip != my_ip:
+                    i = requests.post(node.ip, data={"ip": ip}).json()
+
+            session.add(Node(ip=ip, reliability=0))
             session.commit()
 
-            
+            return write({"nodes": res}, 200)
+
+        else:
+            return write({"error": "Port or IP not supplied. "}, 500)
+
+class node_new:
+    def POST(self):
+        new_request(self)
+
+        if data["ip"]:
+            try:
+                ip = data["ip"].encode("utf-8")
+            except UnicodeError:
+                return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
+
+            res = session.query(Node).filter(Node.ip == ip)
+
+            if not res: #not sure about the real check for existence atm
+                session.add(Node(ip=ip, reliability=0))
+                session.commit()
+
 
         else:
             return write({"error": "Port or IP not supplied. "}, 500)
@@ -66,7 +94,7 @@ class node_init:
 
 urls = (
     "/node/init", "node_init",
-
+    "/node/add", "node_add"
 )
 
 base = declarative_base()
@@ -130,6 +158,8 @@ if __name__ == "__main__":
     #if firstnode, populate self
     #else populate from init node
 
+    my_ip = my_ip + port
+
     if firstnode:
         session.add(Node(ip=my_ip, reliability=0))
         session.commit()
@@ -138,12 +168,19 @@ if __name__ == "__main__":
         try:
             r = "http://%s/node/init" % initnode
             print r
-            i = requests.post(r, data={"ip": my_ip, "port": port}).json()
-            print i
-            #do inserting of all data here
+            i = requests.post(r, data={"ip": my_ip}).json()
+
+            if i["status"] == 200:
+                for node in i["payload"]["nodes"]:
+                    session.add(Node(ip=node["ip"], reliability=node["reliability"]))
+                session.commit()
+                print "Success initializing. "
+            else:
+                print "Error %s: %s" & (i["status"], i["payload"]["error"])
+
         except Exception as e:
             print "Error:", e
-            print "Could not POST to init node. "
+            print "Could not initialize. "
             sys.exit()
 
     app = web.application(urls, globals())
