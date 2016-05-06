@@ -8,6 +8,7 @@ import sys
 import requests
 from urllib2 import urlopen
 import os.path
+import time
 
 ################################################
 #
@@ -41,7 +42,7 @@ class node_init:
         try:
             ip = data["ip"].encode("utf-8")
         except:
-            return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
+            return write({"error": "Port or IP not UTF-8 encoded. "}, 400)
 
         nodes = session.query(Node).all()
 
@@ -61,7 +62,7 @@ class node_new:
 
     # leave nodes for now, work on singular node comunication
     # see if individual node update is possible while excluding
-    # already updated information
+    # already updated information, same for user data
 
     def POST(self):
 
@@ -71,7 +72,7 @@ class node_new:
         try:
             ip = data["ip"].encode("utf-8")
         except:
-            return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
+            return write({"error": "Port or IP not UTF-8 encoded. "}, 400)
 
         res = session.query(Node).filter(Node.ip == ip)
 
@@ -95,17 +96,30 @@ class user_new:
             username = data["username"].encode("utf-8")
             pubkey = data["pubkey"].encode("utf-8")
         except:
-            return write({"error": "Username or pubkey not UTF-8 encoded. "}, 500)
+            return write({"error": "Username or pubkey not UTF-8 encoded. "}, 400)
 
         if len(username) > 200 or len(pubkey) > 900:
-            return write({"error": "Username or pubkey too long. "}, 500)
+            return write({"error": "Username or pubkey too long. "}, 400)
 
         session.add(User(username=username, pubkey=pubkey))
         session.commit()
 
         return write({"message": "Added user. "}, 200)
 
-class user_update:
+# class user_update:
+#     def GET(self):
+#
+#         new_request(self)
+#         data = web.input()
+#
+#         try:
+#             username = data["username"].encode("utf-8")
+#
+#         except:
+#             return write({"error": "Username not UTF-8 encoded. "}, 500)
+
+
+class user_get:
     def GET(self):
 
         new_request(self)
@@ -113,10 +127,64 @@ class user_update:
 
         try:
             username = data["username"].encode("utf-8")
+        except:
+            return write({"error": "Improper username supplied. "}, 404)
 
+        users = session.query(User).filter(User.username == username)
+
+        if users.count() < 1:
+            return write({"error": "No user found. "}, 404)
+
+        for user in users:
+            return write({"message": "User found. ", "user": {"username": user.username, "pubkey": user.pubkey}}, 200)
+
+    #    print users
+
+    #    print dir(users)
+    #    for user in users:
+
+
+################################################
+#
+#                  messages classes
+#
+################################################
+
+class messages_new:
+    def GET(post):
+
+        new_request(self)
+        data = web.input()
+
+        try:
+            origin = data["origin"].encode("utf-8")
+        except:
+            origin = 0
+
+        try:
+            # move most operations to server to speed up client work
+            # maybe store id client side and avoid lookup altogether. we'll see
+            username = data["target"].encode("utf-8")
+
+            if len(username) > 200 or len(username) < 1:
+                return write({"Invalid username. "}, 400) #specify later
+
+            target = session.query(User).filter(User.username == username)
 
         except:
-            return write({"error": "Username not UTF-8 encoded. "}, 500)
+            return write({"error": "Username not found. "}, 404)
+
+        try:
+            content = data["content"].encode("utf-8")
+        except:
+            return write({"error": "No valid content provided. "}, 400)
+
+        if len(content) > 2048:
+            return write({"error": "Content is too long. "}, 404)
+
+        session.add(Message(target=target, origin=origin, content=content, last=time.time()))
+        session.commit()
+
 
 ################################################
 #
@@ -129,8 +197,9 @@ urls = (
     "/node/add", "node_add",
 
     "/user/new", "user_new",
+    "/user/get", "user_get",
 
-    "/message/new", "message_new"
+    "/messages/new", "messages_new"
 )
 
 base = declarative_base()
@@ -150,10 +219,10 @@ class User(base):
 class Message(base):
     __tablename__ = "messages"
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-    target = sqlalchemy.Column(sqlalchemy.Index)
-    origin = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    target = sqlalchemy.Column(sqlalchemy.Integer)
+    origin = sqlalchemy.Column(sqlalchemy.Integer)
     content = sqlalchemy.Column(sqlalchemy.Text)
-    read = sqlalchemy.Column(sqlalchemy.Integer, default=False)
+    last = sqlalchemy.Column(sqlalchemy.Numeric)
 
 engine = sqlalchemy.create_engine("sqlite:///db.db")
 
