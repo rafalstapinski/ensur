@@ -182,9 +182,57 @@ class messages_new:
         if len(content) > 2048:
             return write({"error": "Content is too long. "}, 404)
 
-        session.add(Message(target=target, origin=origin, content=content, last=time.time()))
-        session.commit()
+        try:
+            session.add(Message(target=target, origin=origin, content=content, last=time.time()))
+            session.commit()
 
+            return write({"message": "Sent message successfully. "}, 200)
+
+            #implement push to user client here
+
+        except:
+            return write({"error": "Could not insert into database. "}, 500)
+
+# implement (semi depending on client) manual messages get
+
+class messages_get:
+    def GET(post):
+
+        new_request(self)
+        data = web.input()
+
+        try:  # change to if not supplied get all rather than sending 0
+            last = data["last"]
+            if type(last) is not float:
+                return write({"error": "Improper last update time supplied. Send 0 for all messages regardless of updated time. "}, 400)
+
+        except:
+            return write({"error": "Improper last updated time given. Send 0 for all messages regardless of time. "}, 400)
+
+        try:
+            uid = data["uid"]
+            if len(uid) > 100 or type(uid) is not int:
+                return write({"error": "Improper uid supplied. "}, 400)
+        except:
+            return write({"error": "Improper uid supplied. "}, 400)
+
+        messages = session.query(Message).filter(Message.target = uid)
+        resulting = {}
+
+        if last == 0:
+            for message in messages:
+                resulting[message.target] = {"content": message.content, "origin": message.origin}
+                message.last = newlast # update for real
+        else:
+            newlast = time.time()
+            for message in messages:
+                if message.last > last:
+                    resulting[message.target] = {"content": message.content, "origin": message.origin}
+                message.last = newlast # update for real
+
+        # return messages
+        # update newlast client side
+        return write({"message": "Received messages. ", "messages": resulting, "newlast": newlast}, 200)
 
 ################################################
 #
@@ -199,7 +247,8 @@ urls = (
     "/user/new", "user_new",
     "/user/get", "user_get",
 
-    "/messages/new", "messages_new"
+    "/messages/new", "messages_new",
+    "/messages/get", "messages_get"
 )
 
 base = declarative_base()
