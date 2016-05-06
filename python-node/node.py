@@ -34,57 +34,89 @@ def new_request(request):
 
 class node_init:
     def POST(self):
+
         new_request(self)
         data = web.input()
 
-        if data["ip"]:
-            try:
-                ip = data["ip"].encode("utf-8")
-            except UnicodeError:
-                return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
+        try:
+            ip = data["ip"].encode("utf-8")
+        except:
+            return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
 
-            nodes = session.query(Node).all()
+        nodes = session.query(Node).all()
 
-            res = []
+        res = []
 
-            for node in nodes:
-                res.append({"ip": node.ip, "reliability": node.reliability})
-                if node.ip != my_ip:
-                    i = requests.post(node.ip, data={"ip": ip}).json()
+        for node in nodes:
+            res.append({"ip": node.ip, "reliability": node.reliability})
+            if node.ip != my_ip:
+                i = requests.post(node.ip, data={"ip": ip}).json()
 
-            session.add(Node(ip=ip, reliability=0))
-            session.commit()
+        session.add(Node(ip=ip, reliability=0))
+        session.commit()
 
-            return write({"nodes": res}, 200)
-
-        else:
-            return write({"error": "Port or IP not supplied. "}, 500)
+        return write({"message": "Nodes returned. ", "nodes": res}, 200)
 
 class node_new:
+
+    # leave nodes for now, work on singular node comunication
+    # see if individual node update is possible while excluding
+    # already updated information
+
     def POST(self):
+
         new_request(self)
+        data = web.input()
 
-        if data["ip"]:
-            try:
-                ip = data["ip"].encode("utf-8")
-            except UnicodeError:
-                return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
+        try:
+            ip = data["ip"].encode("utf-8")
+        except:
+            return write({"error": "Port or IP not UTF-8 encoded. "}, 500)
 
-            res = session.query(Node).filter(Node.ip == ip)
+        res = session.query(Node).filter(Node.ip == ip)
 
-            if not res: #not sure about the real check for existence atm
-                session.add(Node(ip=ip, reliability=0))
-                session.commit()
-
-
-        else:
-            return write({"error": "Port or IP not supplied. "}, 500)
+        if not res: #not sure about the real check for existence atm
+            session.add(Node(ip=ip, reliability=0))
+            session.commit()
 
 ################################################
 #
 #                  user classes
 #
 ################################################
+
+class user_new:
+    def GET(self):
+
+        new_request(self)
+        data = web.input()
+
+        try:
+            username = data["username"].encode("utf-8")
+            pubkey = data["pubkey"].encode("utf-8")
+        except:
+            return write({"error": "Username or pubkey not UTF-8 encoded. "}, 500)
+
+        if len(username) > 200 or len(pubkey) > 900:
+            return write({"error": "Username or pubkey too long. "}, 500)
+
+        session.add(User(username=username, pubkey=pubkey))
+        session.commit()
+
+        return write({"message": "Added user. "}, 200)
+
+class user_update:
+    def GET(self):
+
+        new_request(self)
+        data = web.input()
+
+        try:
+            username = data["username"].encode("utf-8")
+
+
+        except:
+            return write({"error": "Username not UTF-8 encoded. "}, 500)
 
 ################################################
 #
@@ -94,7 +126,11 @@ class node_new:
 
 urls = (
     "/node/init", "node_init",
-    "/node/add", "node_add"
+    "/node/add", "node_add",
+
+    "/user/new", "user_new",
+
+    "/message/new", "message_new"
 )
 
 base = declarative_base()
@@ -110,6 +146,14 @@ class User(base):
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     username = sqlalchemy.Column(sqlalchemy.String)
     pubkey = sqlalchemy.Column(sqlalchemy.String)
+
+class Message(base):
+    __tablename__ = "messages"
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
+    target = sqlalchemy.Column(sqlalchemy.Index)
+    origin = sqlalchemy.Column(sqlalchemy.Integer, default=0)
+    content = sqlalchemy.Column(sqlalchemy.Text)
+    read = sqlalchemy.Column(sqlalchemy.Integer, default=False)
 
 engine = sqlalchemy.create_engine("sqlite:///db.db")
 
