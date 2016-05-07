@@ -8,7 +8,6 @@ import sys
 import requests
 from urllib2 import urlopen
 import os.path
-import time
 
 ################################################
 #
@@ -151,10 +150,12 @@ class user_get:
 ################################################
 
 class messages_new:
-    def GET(post):
+    def GET(self):
 
         new_request(self)
         data = web.input()
+
+        # probably get rid of anon messaging since all messages will be signed
 
         try:
             origin = data["origin"].encode("utf-8")
@@ -169,7 +170,7 @@ class messages_new:
             if len(username) > 200 or len(username) < 1:
                 return write({"Invalid username. "}, 400) #specify later
 
-            target = session.query(User).filter(User.username == username)
+            target = session.query(User).filter(User.username == username).first().id
 
         except:
             return write({"error": "Username not found. "}, 404)
@@ -183,7 +184,7 @@ class messages_new:
             return write({"error": "Content is too long. "}, 404)
 
         try:
-            session.add(Message(target=target, origin=origin, content=content, last=time.time()))
+            session.add(Message(target=target, origin=origin, content=content))
             session.commit()
 
             return write({"message": "Sent message successfully. "}, 200)
@@ -191,48 +192,37 @@ class messages_new:
             #implement push to user client here
 
         except:
-            return write({"error": "Could not insert into database. "}, 500)
+            #print sys.exc_info()
+            return write({"error": "Server error, could not insert into database. "}, 500)
 
 # implement (semi depending on client) manual messages get
 
 class messages_get:
-    def GET(post):
+    def GET(self):
 
         new_request(self)
         data = web.input()
 
-        try:  # change to if not supplied get all rather than sending 0
-            last = data["last"]
-            if type(last) is not float:
-                return write({"error": "Improper last update time supplied. Send 0 for all messages regardless of updated time. "}, 400)
-
+        try:
+            last = int(data["last"])
         except:
-            return write({"error": "Improper last updated time given. Send 0 for all messages regardless of time. "}, 400)
+            last = 0
 
         try:
-            uid = data["uid"]
-            if len(uid) > 100 or type(uid) is not int:
-                return write({"error": "Improper uid supplied. "}, 400)
+            uid = int(data["uid"])
         except:
             return write({"error": "Improper uid supplied. "}, 400)
 
-        messages = session.query(Message).filter(Message.target = uid)
+        messages = session.query(Message).filter(Message.target == uid)
         resulting = {}
 
-        if last == 0:
-            for message in messages:
-                resulting[message.target] = {"content": message.content, "origin": message.origin}
-                message.last = newlast # update for real
-        else:
-            newlast = time.time()
-            for message in messages:
-                if message.last > last:
-                    resulting[message.target] = {"content": message.content, "origin": message.origin}
-                message.last = newlast # update for real
+        for message in messages:
+            if message.id > last:
+                resulting[message.id] = {"origin": message.origin, "content": message.content}
 
         # return messages
         # update newlast client side
-        return write({"message": "Received messages. ", "messages": resulting, "newlast": newlast}, 200)
+        return write({"message": "Received messages. ", "messages": resulting, "count": len(resulting)}, 200)
 
 ################################################
 #
@@ -271,7 +261,6 @@ class Message(base):
     target = sqlalchemy.Column(sqlalchemy.Integer)
     origin = sqlalchemy.Column(sqlalchemy.Integer)
     content = sqlalchemy.Column(sqlalchemy.Text)
-    last = sqlalchemy.Column(sqlalchemy.Numeric)
 
 engine = sqlalchemy.create_engine("sqlite:///db.db")
 
