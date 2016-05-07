@@ -1,5 +1,8 @@
 *.pyc
 config.py
-ensur-app/hooks/
-ensur-app/platforms/
-ensur-app/plugins/
+*.db
+node2/
+app/hooks
+app/platforms
+app/plugins
+app/config.xml
