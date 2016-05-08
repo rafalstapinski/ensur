@@ -4,6 +4,7 @@ import json
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import scoped_session
 import sys
 import requests
 from urllib2 import urlopen
@@ -93,17 +94,46 @@ class user_new:
 
         try:
             username = data["username"].encode("utf-8")
+            print username
             pubkey = data["pubkey"].encode("utf-8")
+            print pubkey
         except:
             return write({"error": "Username or pubkey not UTF-8 encoded. "}, 400)
 
-        if len(username) > 200 or len(pubkey) > 900:
+        if len(username) > 200 or len(pubkey) > 4096:
             return write({"error": "Username or pubkey too long. "}, 400)
+
+        user = session.query(User).filter(User.username == username).first()
+
+        if user is not None:
+            return write({"error": "Username already exists. "}, 452)
 
         session.add(User(username=username, pubkey=pubkey))
         session.commit()
 
-        return write({"message": "Added user. "}, 200)
+        user = session.query(User).filter(User.username == username).first()
+
+        return write({"message": "Added user. ", "username": user.username, "uid": user.id}, 200)
+
+class user_exists:
+    def GET(self):
+
+        new_request(self)
+        data = web.input()
+
+        try:
+            username = data["username"].encode("utf-8")
+        except:
+            return write({"error": "Invalid username. "}, 400)
+
+        user = session.query(User).filter(User.username == username).first()
+
+        if user is not None:
+            return write({"error": "Username already exists. "}, 452)
+
+        return write({"message": "Username is available. ", "username": username}, 200)
+
+        #probably change up status codes so they make more sense with the method name
 
 # class user_update:
 #     def GET(self):
@@ -192,10 +222,7 @@ class messages_new:
             #implement push to user client here
 
         except:
-            #print sys.exc_info()
             return write({"error": "Server error, could not insert into database. "}, 500)
-
-# implement (semi depending on client) manual messages get
 
 class messages_get:
     def GET(self):
@@ -236,6 +263,7 @@ urls = (
 
     "/user/new", "user_new",
     "/user/get", "user_get",
+    "/user/exists", "user_exists",
 
     "/messages/new", "messages_new",
     "/messages/get", "messages_get"
@@ -268,8 +296,9 @@ if not os.path.isfile("db.db"):
     base.metadata.create_all(engine)
 
 base.metadata.bind = engine
-DBSession = sessionmaker(bind=engine)
-session = DBSession()
+#DBSession = sessionmaker(bind=engine)
+#session = DBSession()
+session = scoped_session(sessionmaker(bind=engine))
 
 ################################################
 #
