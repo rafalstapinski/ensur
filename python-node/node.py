@@ -26,7 +26,6 @@ def new_request(request):
     web.header("Content-Type", "application/json")
     web.header("Access-Control-Allow-Origin", "*")
 
-
 ################################################
 #
 #                  node classes
@@ -147,7 +146,6 @@ class user_exists:
 #         except:
 #             return write({"error": "Username not UTF-8 encoded. "}, 500)
 
-
 class user_get:
     def GET(self):
 
@@ -166,12 +164,6 @@ class user_get:
 
         for user in users:
             return write({"message": "User found. ", "user": {"username": user.username, "pubkey": user.pubkey}}, 200)
-
-    #    print users
-
-    #    print dir(users)
-    #    for user in users:
-
 
 ################################################
 #
