@@ -3,6 +3,7 @@ import json
 import sys
 import requests
 from config import db
+from operator import itemgetter
 
 ##############################################
 #
@@ -76,6 +77,7 @@ class message_new:
         try:
             receiver = i['receiver'].encode('utf-8')
             message = i['message'].encode('utf-8')
+            copy = i['copy'].encode('utf-8')
             sender = i['sender'].encode('utf-8')
         except KeyError:
             return write({'message': 'you must provide username and pubkey'}, 400)
@@ -84,14 +86,15 @@ class message_new:
         except:
             return write({'message': 'something went wrong'}, 500)
 
-        seq_id = db.conn.insert('messages', receiver=receiver, sender=sender, message=message)
+        msg_id = db.conn.insert('messages', receiver=receiver, sender=sender, message=message, senders_copy=0)
+        copy_id = db.conn.insert('messages', receiver=receiver, sender=sender, message=copy, senders_copy=1)
 
-        if seq_id is not None:
+        if copy_id is not None and msg_id is not None:
             return write({'message': 'message sent'}, 200)
 
         return write({'message': 'error sending message'}, 500)
 
-class message_get:
+class conversation_get:
 
     def POST(self):
 
@@ -100,8 +103,8 @@ class message_get:
         i = web.input()
 
         try:
-            receiver = i['receiver'].encode('utf-8')
-            sender = i['sender'].encode('utf-8')
+            me = i['me'].encode('utf-8')
+            them = i['them'].encode('utf-8')
         except KeyError:
             return write({'message': 'you must provide username and pubkey'}, 400)
         except UnicodeError:
@@ -109,12 +112,49 @@ class message_get:
         except:
             return write({'message': 'something went wrong'}, 500)
 
-        myvars = dict(receiver=receiver, sender=sender)
+        myvars = dict(them=them, me=me)
 
-        results = db.conn.select('messages', myvars, where='receiver = $receiver or sender = $sender')
+        messages = []
+
+        results = db.conn.select('messages', myvars, where='(receiver = $me and sender = $them and senders_copy = 0) or (receiver = $them and sender = $me and senders_copy = 1)')
 
         for result in results:
-            print result
+            messages.append((result['id'], result['receiver'], result['sender'], result['message']))
+
+        return write({'messages': sorted(messages, key=itemgetter(0))}, 200)
+
+class contacts_get:
+
+    def POST(self):
+
+        new_request(self)
+
+        i = web.input()
+
+        try:
+            username = i['username'].encode('utf-8')
+        except KeyError:
+            return write({'message': 'you must provide username and pubkey'}, 400)
+        except UnicodeError:
+            return write({'message': 'inputs must be utf-8 encoded'}, 400)
+        except:
+            return write({'message': 'something went wrong'}, 500)
+
+        myvars = dict(username=username)
+
+        results = db.conn.select('messages', myvars, where='receiver = $username or sender = $username')
+
+        contacts = []
+
+        for result in results:
+            if result['receiver'] != username:
+                if result['receiver'] not in contacts:
+                    contacts.append(result['receiver'])
+            if result['sender'] != username:
+                if result['sender'] not in contacts:
+                    contacts.append(result['sender'])
+
+        return write({'contacts': contacts}, 200)
 
 
 ##############################################
@@ -127,7 +167,8 @@ urls = (
     '/user/new', 'user_new',
     '/user/get', 'user_get',
     '/message/new', 'message_new',
-    '/message/get', 'message_get',
+    '/conversation/get', 'conversation_get',
+    '/contacts/get', 'contacts_get'
 )
 
 def write(payload, status):

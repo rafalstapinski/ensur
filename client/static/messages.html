@@ -3,8 +3,9 @@
 <html >
   <head >
     <title >nsur</title>
-    <script src='./res/ext/openpgp/openpgp.min.js' ></script>
-    <script src='./res/ext/js-cookie/js.cookie.js' ></script>
+    <script src='/static/res/ext/openpgp/openpgp.min.js' ></script>
+    <script src='/static/res/ext/js-cookie/js.cookie.js' ></script>
+    <script src='/static/res/js/messages.js' ></script>
     <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js' ></script>
   </head>
   <body >
@@ -16,6 +17,7 @@
     </div>
     <div class='compose' >
       <form class='new_message' >
+        <input placeholder='to' id='receiver' />
         <textarea placeholder='message' id='message_box' ></textarea>
         <input type='submit' value='send' />
       </form>
@@ -23,10 +25,66 @@
 
     <script >
 
-      $('.new_message').submit(function(e) {
-        
+      $('.contacts').on('click', '.contact', function() {
+        $.ajax({
+          type: 'post',
+          url: 'http://localhost:8080/conversation/get',
+          data: {
+            me: Cookies.get('username'),
+            them: $(this).html()
+          },
+          success: function(data) {
+            if (data['status'] == 200) {
+
+              show_conversation(data['payload']['messages'])
+
+            } else {
+              alert(data['payload']['message'])
+            }
+          }
+        })
       })
 
+      $.ajax({
+        type: 'post',
+        url: 'http://localhost:8080/contacts/get',
+        data: {
+          username: Cookies.get('username'),
+        },
+        success: function(data) {
+          update_contacts(data['payload']['contacts'])
+        }
+      })
+
+      $('.new_message').submit(function(e) {
+        e.preventDefault()
+
+        var privkey = window.localStorage.getItem('privkey')
+        var username = Cookies.get('username')
+        var receiver = $('#receiver').val()
+        var message = $('#message_box').val()
+
+        var privKeyObj = openpgp.key.readArmored(privkey).keys[0]
+
+        $.ajax({
+          type: 'post',
+          data: {
+            username: receiver
+          },
+          url: 'http://localhost:8080/user/get',
+          success: function(data) {
+            if (data['status'] == 200) {
+              var pubkey = data['payload']['pubkey']
+
+              send_message(receiver, pubkey, message)
+
+            } else {
+              alert(data['payload']['message'])
+            }
+          }
+        })
+
+      })
     </script>
   </body>
 </html>

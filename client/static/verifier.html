@@ -1,0 +1,22 @@
+<!DOCTYPE html >
+
+<html >
+  <head >
+    <title >nsur</title>
+    <script src='/static/res/ext/openpgp/openpgp.min.js' ></script>
+    <script src='/static/res/ext/js-cookie/js.cookie.js' ></script>
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js' ></script>
+  </head>
+  <body >
+
+    <script >
+
+      var privkey = window.localStorage.getItem('privkey')
+      var pubkey = window.localStorage.getItem('pubkey')
+      var username = Cookies.get('username')
+
+      var privKeyObj = openpgp.key.readArmored(privkey).keys[0]
+
+    </script>
+  </body>
+</html>
