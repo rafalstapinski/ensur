@@ -1,42 +1,42 @@
-var send_message = function(receiver, pubkey, message) {
-  options = {
-    data: message,
-    publicKeys: openpgp.key.readArmored(pubkey).keys,
-  }
-
-  openpgp.encrypt(options).then(function(ciphertext) {
-    encrypted_message = ciphertext.data
-
-    options = {
-      data: message,
-      publicKeys: openpgp.key.readArmored(localStorage.getItem('pubkey')).keys,
-    }
-
-    openpgp.encrypt(options).then(function(ciphertext) {
-      encrypted_copy = ciphertext.data
-
-      $.ajax({
-        type: 'post',
-        url: 'http://localhost:8080/message/new',
-        data: {
-          receiver: receiver,
-          sender: Cookies.get('username'),
-          message: encrypted_message,
-          copy: encrypted_copy
-        },
-        success: function(data) {
-          if (data['status'] == 200) {
-            $('#receiver').val('')
-            $('#message_box').val('')
-          } else {
-            alert(data['payload']['message'])
-          }
-        }
-      })
-
-    })
-  })
-}
+// var send_message = function(receiver, pubkey, message) {
+//   options = {
+//     data: message,
+//     publicKeys: openpgp.key.readArmored(pubkey).keys,
+//   }
+//
+//   openpgp.encrypt(options).then(function(ciphertext) {
+//     encrypted_message = ciphertext.data
+//
+//     options = {
+//       data: message,
+//       publicKeys: openpgp.key.readArmored(localStorage.getItem('pubkey')).keys,
+//     }
+//
+//     openpgp.encrypt(options).then(function(ciphertext) {
+//
+//
+//       $.ajax({
+//         type: 'post',
+//         url: 'http://localhost:8080/message/new',
+//         data: {
+//           receiver: receiver,
+//           sender: Cookies.get('username'),
+//           message: encrypted_message,
+//           copy: encrypted_copy
+//         },
+//         success: function(data) {
+//           if (data['status'] == 200) {
+//             $('#receiver').val('')
+//             $('#message_box').val('')
+//           } else {
+//             alert(data['payload']['message'])
+//           }
+//         }
+//       })
+//
+//     })
+//   })
+// }
 
 var update_contacts = function(contacts) {
 

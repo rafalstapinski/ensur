@@ -1,6 +1,7 @@
 import web
 import os
 import time
+from config import Config
 
 class index:
 
@@ -24,27 +25,47 @@ class messages:
 
         new_request(self)
 
-        username = web.cookies().get('username').encode('utf-8')
-
-        if username is None:
+        try:
+            username = web.cookies().get('username').encode('utf-8')
+        except:
             raise web.seeother('/')
 
         cleartext = web.cookies().get('cleartext')
+        signature = web.cookies().get('signature')
 
-        # if cleartext is None:
-        #     web.setcookie('cleartext', int(round(time.time() * 1000)))
+        if signature is None or cleartext is None:
+            web.setcookie('cleartext', int(round(time.time() * 1000)))
+
+            f = open('%s/static/verifier.html' % __location__)
+            html = f.read()
+            f.close()
+
+            return html
+
+        try:
+            cleartext = int(cleartext)
+        except:
+            web.setcookie('cleartext', '', expires=-1)
+
+
+        if int(round(time.time() * 1000)) - 20 > int(cleartext):
+            web.setcookie('cleartext', int(round(time.time() * 1000)))
+
+            f = open('%s/static/verifier.html' % __location__)
+            html = f.read()
+            f.close()
+
+            web.setcookie('cleartext', '', expires=-1)
+
+            return html
+
+
+
+        # f = open('%s/static/messages.html' % __location__)
+        # html = f.read()
+        # f.close()
         #
-        #     f = open('%s/static/verifier.html' % __location__)
-        #     html = f.read()
-        #     f.close()
-        #
-        #     return html
-
-        f = open('%s/static/messages.html' % __location__)
-        html = f.read()
-        f.close()
-
-        return html
+        # return html
 
 ##############################################
 #
@@ -63,6 +84,7 @@ def notfound():
 def new_request(request):
     web.header('Access-Control-Allow-Origin', '*')
 
+db = web.database(dbn='postgres', db=Config.dbname, user=Config.dbuser, pw=Config.dbpass)
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 if __name__ == '__main__':

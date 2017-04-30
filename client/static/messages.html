@@ -25,66 +25,83 @@
 
     <script >
 
-      $('.contacts').on('click', '.contact', function() {
-        $.ajax({
-          type: 'post',
-          url: 'http://localhost:8080/conversation/get',
-          data: {
-            me: Cookies.get('username'),
-            them: $(this).html()
-          },
-          success: function(data) {
-            if (data['status'] == 200) {
+      var options = {
+        data: 'henlo world',
+        privateKeys: openpgp.key.readArmored(localStorage.getItem('privkey')).keys[0],
+        publicKeys: openpgp.key.readArmored(localStorage.getItem('pubkey')).keys[0]
+      }
 
-              show_conversation(data['payload']['messages'])
+      openpgp.sign(options).then(function(signed) {
 
-            } else {
-              alert(data['payload']['message'])
-            }
-          }
-        })
+        console.log(signed.data)
+
+          // options.data = ciphertext.data
+          //
+          // openpgp.sign(options).then(function(signed) {
+          //   console.log(signed.data)
+          // })
       })
 
-      $.ajax({
-        type: 'post',
-        url: 'http://localhost:8080/contacts/get',
-        data: {
-          username: Cookies.get('username'),
-        },
-        success: function(data) {
-          update_contacts(data['payload']['contacts'])
-        }
-      })
-
-      $('.new_message').submit(function(e) {
-        e.preventDefault()
-
-        var privkey = window.localStorage.getItem('privkey')
-        var username = Cookies.get('username')
-        var receiver = $('#receiver').val()
-        var message = $('#message_box').val()
-
-        var privKeyObj = openpgp.key.readArmored(privkey).keys[0]
-
-        $.ajax({
-          type: 'post',
-          data: {
-            username: receiver
-          },
-          url: 'http://localhost:8080/user/get',
-          success: function(data) {
-            if (data['status'] == 200) {
-              var pubkey = data['payload']['pubkey']
-
-              send_message(receiver, pubkey, message)
-
-            } else {
-              alert(data['payload']['message'])
-            }
-          }
-        })
-
-      })
+      // $('.contacts').on('click', '.contact', function() {
+      //   $.ajax({
+      //     type: 'post',
+      //     url: 'http://localhost:8080/conversation/get',
+      //     data: {
+      //       me: Cookies.get('username'),
+      //       them: $(this).html()
+      //     },
+      //     success: function(data) {
+      //       if (data['status'] == 200) {
+      //
+      //         show_conversation(data['payload']['messages'])
+      //
+      //       } else {
+      //         alert(data['payload']['message'])
+      //       }
+      //     }
+      //   })
+      // })
+      //
+      // $.ajax({
+      //   type: 'post',
+      //   url: 'http://localhost:8080/contacts/get',
+      //   data: {
+      //     username: Cookies.get('username'),
+      //   },
+      //   success: function(data) {
+      //     update_contacts(data['payload']['contacts'])
+      //   }
+      // })
+      //
+      // $('.new_message').submit(function(e) {
+      //   e.preventDefault()
+      //
+      //   var privkey = window.localStorage.getItem('privkey')
+      //   var username = Cookies.get('username')
+      //   var receiver = $('#receiver').val()
+      //   var message = $('#message_box').val()
+      //
+      //   var privKeyObj = openpgp.key.readArmored(privkey).keys[0]
+      //
+      //   $.ajax({
+      //     type: 'post',
+      //     data: {
+      //       username: receiver
+      //     },
+      //     url: 'http://localhost:8080/user/get',
+      //     success: function(data) {
+      //       if (data['status'] == 200) {
+      //         var pubkey = data['payload']['pubkey']
+      //
+      //         send_message(receiver, pubkey, message)
+      //
+      //       } else {
+      //         alert(data['payload']['message'])
+      //       }
+      //     }
+      //   })
+      //
+      // })
     </script>
   </body>
 </html>

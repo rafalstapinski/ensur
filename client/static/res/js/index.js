@@ -1,13 +1,18 @@
 var set_keys = function(username, passphrase) {
+
+
+
   var options = {
     userIds: [{name: username}],
-    numBits: 512,
     passphrase: passphrase
   }
 
   openpgp.generateKey(options).then(function(key) {
     var privkey = key.privateKeyArmored
     var pubkey = key.publicKeyArmored
+
+    console.log(pubkey)
+    console.log(privkey)
 
     $('.loading_screen').hide()
 

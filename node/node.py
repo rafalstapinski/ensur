@@ -2,8 +2,9 @@ import web
 import json
 import sys
 import requests
-from config import db
+from config import Config
 from operator import itemgetter
+import pgpy
 
 ##############################################
 #
@@ -60,7 +61,7 @@ class user_get:
 
         dbvars = dict(username=username)
 
-        results = db.conn.select('users', dbvars, where='username = $username')
+        results = db.select('users', dbvars, where='username = $username')
 
         for result in results:
             return write({'pubkey': result['pubkey']}, 200)
@@ -86,8 +87,8 @@ class message_new:
         except:
             return write({'message': 'something went wrong'}, 500)
 
-        msg_id = db.conn.insert('messages', receiver=receiver, sender=sender, message=message, senders_copy=0)
-        copy_id = db.conn.insert('messages', receiver=receiver, sender=sender, message=copy, senders_copy=1)
+        msg_id = db.insert('messages', receiver=receiver, sender=sender, message=message, senders_copy=0)
+        copy_id = db.insert('messages', receiver=receiver, sender=sender, message=copy, senders_copy=1)
 
         if copy_id is not None and msg_id is not None:
             return write({'message': 'message sent'}, 200)
@@ -116,7 +117,7 @@ class conversation_get:
 
         messages = []
 
-        results = db.conn.select('messages', myvars, where='(receiver = $me and sender = $them and senders_copy = 0) or (receiver = $them and sender = $me and senders_copy = 1)')
+        results = db.select('messages', myvars, where='(receiver = $me and sender = $them and senders_copy = 0) or (receiver = $them and sender = $me and senders_copy = 1)')
 
         for result in results:
             messages.append((result['id'], result['receiver'], result['sender'], result['message']))
@@ -142,7 +143,7 @@ class contacts_get:
 
         myvars = dict(username=username)
 
-        results = db.conn.select('messages', myvars, where='receiver = $username or sender = $username')
+        results = db.select('messages', myvars, where='receiver = $username or sender = $username')
 
         contacts = []
 
@@ -185,7 +186,7 @@ def exists_duplicate_username(username):
 
     dbvars = dict(username=username)
 
-    results = db.conn.select('users', dbvars, where='username = $username')
+    results = db.select('users', dbvars, where='username = $username')
 
     for result in results:
         return True
@@ -194,7 +195,7 @@ def exists_duplicate_username(username):
 
 def create_user(username, pubkey):
 
-    seq_id = db.conn.insert('users', username=username, pubkey=pubkey)
+    seq_id = db.insert('users', username=username, pubkey=pubkey)
 
     try:
         int(seq_id)
@@ -202,6 +203,7 @@ def create_user(username, pubkey):
     except:
         return False
 
+db = web.database(dbn='postgres', db=Config.dbname, user=Config.dbuser, pw=Config.dbpass)
 
 if __name__ == '__main__':
 
@@ -222,6 +224,7 @@ if __name__ == '__main__':
     #     print 'Error getting IP. '
     #     sys.exit()
 
+    web.config.debug = False
     app = web.application(urls, globals())
     app.notfound = notfound
     app.run()

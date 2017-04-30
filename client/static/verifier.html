@@ -11,11 +11,17 @@
 
     <script >
 
-      var privkey = window.localStorage.getItem('privkey')
-      var pubkey = window.localStorage.getItem('pubkey')
-      var username = Cookies.get('username')
+      var options = {
+        data: Cookies.get('cleartext'),
+        privateKeys: openpgp.key.readArmored(localStorage.getItem('privkey')).keys[0],
+        detached: true
+      }
 
-      var privKeyObj = openpgp.key.readArmored(privkey).keys[0]
+      openpgp.sign(options).then(function(signed) {
+
+        Cookies.set('signature', signed.signature)
+        location.reload()
+      })
 
     </script>
   </body>
