@@ -18,7 +18,6 @@
       }
 
       openpgp.sign(options).then(function(signed) {
-
         Cookies.set('signature', signed.signature)
         location.reload()
       })

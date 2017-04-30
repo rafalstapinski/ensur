@@ -2,6 +2,7 @@ import web
 import os
 import time
 from config import Config
+import pgpy
 
 class index:
 
@@ -34,6 +35,7 @@ class messages:
         signature = web.cookies().get('signature')
 
         if signature is None or cleartext is None:
+
             web.setcookie('cleartext', int(round(time.time() * 1000)))
 
             f = open('%s/static/verifier.html' % __location__)
@@ -43,29 +45,38 @@ class messages:
             return html
 
         try:
-            cleartext = int(cleartext)
+            if int(round(time.time() * 1000)) - 20000 > int(cleartext):
+                web.setcookie('cleartext', int(round(time.time() * 1000)))
+
+                f = open('%s/static/verifier.html' % __location__)
+                html = f.read()
+                f.close()
+
+                return html
         except:
             web.setcookie('cleartext', '', expires=-1)
+            web.setcookie('signature', '', expires=-1)
+            raise web.seeother('/messages')
+
+        try:
+            params = dict(username=username)
+            user = db.select('users', params, where='username = $username').list()[0]
+        except IndexError:
+            web.setcookie('username', '', expires=-1)
+            raise web.seeother('/')
 
 
-        if int(round(time.time() * 1000)) - 20 > int(cleartext):
-            web.setcookie('cleartext', int(round(time.time() * 1000)))
+        pubkey, _ = pgpy.PGPKey.from_blob(user.pubkey)
+        if pubkey.verify(cleartext, pgpy.PGPSignature.from_blob(signature)).__bool__():
 
-            f = open('%s/static/verifier.html' % __location__)
+            web.setcookie('signature', '', expires=-1)
+            web.setcookie('cleartext', '', expires=-1)
+
+            f = open('%s/static/messages.html' % __location__)
             html = f.read()
             f.close()
 
-            web.setcookie('cleartext', '', expires=-1)
-
             return html
-
-
-
-        # f = open('%s/static/messages.html' % __location__)
-        # html = f.read()
-        # f.close()
-        #
-        # return html
 
 ##############################################
 #
