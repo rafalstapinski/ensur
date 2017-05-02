@@ -25,17 +25,6 @@
 
     <script >
 
-      var options = {
-        data: 'henlo world',
-        privateKeys: openpgp.key.readArmored(localStorage.getItem('privkey')).keys[0],
-        publicKeys: openpgp.key.readArmored(localStorage.getItem('pubkey')).keys[0]
-      }
-
-      openpgp.encrypt(options).then(function(encrypted) {
-
-        console.log(encrypted)
-      })
-
       $('.contacts').on('click', '.contact', function() {
         $.ajax({
           type: 'post',
@@ -45,12 +34,11 @@
             them: $(this).html()
           },
           success: function(data) {
-            if (data['status'] == 200) {
+            if (data.status == 200) {
 
-              show_conversation(data['payload']['messages'])
-
+              show_conversation(data.payload.messages)
             } else {
-              alert(data['payload']['message'])
+              alert(data.payload.message)
             }
           }
         })
@@ -63,7 +51,7 @@
           username: Cookies.get('username'),
         },
         success: function(data) {
-          update_contacts(data['payload']['contacts'])
+          update_contacts(data.payload.contacts)
         }
       })
 
@@ -85,16 +73,13 @@
           url: 'http://localhost:8080/user/get',
           success: function(data) {
             if (data['status'] == 200) {
-              var pubkey = data['payload']['pubkey']
 
-              send_message(receiver, pubkey, message)
-
+              send_message(receiver, data.payload.pubkey, message)
             } else {
-              alert(data['payload']['message'])
+              alert(data.payload.message)
             }
           }
         })
-
       })
     </script>
   </body>

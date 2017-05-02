@@ -11,9 +11,6 @@ var set_keys = function(username, passphrase) {
     var privkey = key.privateKeyArmored
     var pubkey = key.publicKeyArmored
 
-    console.log(pubkey)
-    console.log(privkey)
-
     $('.loading_screen').hide()
 
     $.ajax({
@@ -24,11 +21,10 @@ var set_keys = function(username, passphrase) {
       },
       url: 'http://localhost:8080/user/new',
       success: function(data) {
-        if (data['status'] == 200) {
+        if (data.status == 200) {
           Cookies.set('username', username)
           window.localStorage.setItem('pubkey', pubkey)
           window.localStorage.setItem('privkey', privkey)
-          window.localStorage.setItem('passphrase', passphrase)
           location.href='messages'
         }
       }

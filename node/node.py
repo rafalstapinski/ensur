@@ -87,11 +87,20 @@ class message_new:
         except:
             return write({'message': 'something went wrong'}, 500)
 
-        msg_id = db.insert('messages', receiver=receiver, sender=sender, message=message, senders_copy=0)
-        copy_id = db.insert('messages', receiver=receiver, sender=sender, message=copy, senders_copy=1)
+        try:
+            user = db.select('users', dict(username=receiver), where='username = $username').first()[0]
+        except IndexError:
+            return write({'message': 'you don\t exist!'}, 400)
+        except:
+            return write({'message': 'something went wrong'}, 500)
 
-        if copy_id is not None and msg_id is not None:
-            return write({'message': 'message sent'}, 200)
+        
+
+        # msg_id = db.insert('messages', receiver=receiver, sender=sender, message=message, senders_copy=0)
+        # copy_id = db.insert('messages', receiver=receiver, sender=sender, message=copy, senders_copy=1)
+        #
+        # if copy_id is not None and msg_id is not None:
+        #     return write({'message': 'message sent'}, 200)
 
         return write({'message': 'error sending message'}, 500)
 
